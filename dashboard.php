@@ -52,6 +52,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['new_class_name'])) {
     }
 }
 
+// Handle post deletion
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_post_id'])) {
+    $post_id = trim($_POST['delete_post_id']);
+    if (!empty($post_id)) {
+        $posts = loadJson($postsFile);
+        $postFound = false;
+        foreach ($posts as $index => $post) {
+            if ($post['post_id'] === $post_id && $post['instructor_id'] === $_SESSION['user_id']) {
+                unset($posts[$index]);
+                $postFound = true;
+                break;
+            }
+        }
+        if ($postFound) {
+            saveJson($postsFile, array_values($posts));
+            header("Location: dashboard.php");
+            exit;
+        } else {
+            $errorMessage = "Post not found or you don't have permission to delete it.";
+        }
+    } else {
+        $errorMessage = "Invalid post ID.";
+    }
+}
+
 // Load data
 $classes = loadJson($classesFile);
 $posts = loadJson($postsFile);
@@ -541,6 +566,11 @@ header h1 {
         </div>
     </div>
 
+    <!-- Hidden form for post deletion -->
+    <form id="delete-post-form" method="POST" style="display: none;">
+        <input type="hidden" name="delete_post_id" id="delete_post_id">
+    </form>
+
     <script>
         function toggleClassDashboard(classId) {
             const dashboard = document.getElementById('dashboard-' + classId);
@@ -564,9 +594,8 @@ header h1 {
 
         function deletePost(postId) {
             if (confirm('Are you sure you want to delete this post?')) {
-                // Implement AJAX call to delete the post
-                // For now, just reload the page
-                window.location.reload();
+                document.getElementById('delete_post_id').value = postId;
+                document.getElementById('delete-post-form').submit();
             }
         }
 

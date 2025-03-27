@@ -31,22 +31,27 @@ function loadJson($file) {
 // Search through posts.json for an assignment element with the matching assignment_id.
 $posts = loadJson($postsFile);
 $foundAssignment = null;
+
 foreach ($posts as $post) {
     if (isset($post['content']) && is_array($post['content'])) {
         foreach ($post['content'] as $element) {
-            if ($element['type'] === 'assignment' && isset($element['assignment_id']) && $element['assignment_id'] === $assignment_id) {
-                // Found the assignment element.
-                $foundAssignment = [
-                    "assignment_id" => $assignment_id,
-                    "assignment_title" => $element['assignment_title'],
-                    "assignment_description" => $element['assignment_description'],
-                    "deadline" => $element['deadline'],
-                    // Optionally, store additional details:
-                    "post_id" => $post['post_id'],
-                    "class_id" => $post['class_id'],
-                    "instructions" => $element['text'] // any additional instructions
-                ];
-                break 2;
+            if ($element['type'] === 'assignment') {
+                // Use assignment_id if available, otherwise fall back to post_id
+                $elementAssignmentId = $element['assignment_id'] ?? $post['post_id'];
+                
+                if ($elementAssignmentId === $assignment_id) {
+                    // Found the assignment element.
+                    $foundAssignment = [
+                        "assignment_id" => $elementAssignmentId,
+                        "assignment_title" => $element['assignment_title'] ?? 'Untitled Assignment',
+                        "assignment_description" => $element['assignment_description'] ?? '',
+                        "deadline" => $element['deadline'] ?? '',
+                        "post_id" => $post['post_id'],
+                        "class_id" => $post['class_id'],
+                        "instructions" => $element['text'] ?? '' // any additional instructions
+                    ];
+                    break 2;
+                }
             }
         }
     }
@@ -129,61 +134,211 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($foundAssignment['assignment_title']); ?> - Assignment Submission</title>
-    <link rel="stylesheet" href="style.css">
-    <!-- Font Awesome CDN -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-3Bf5rLdpK6E+woua6Ok+X2BxF/MRk9AwFcic3wou0vWqL5y6e/j5G+tmC+qTz9AYyAcxOUi+3DbGe1bEk7x1xw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-color: #76ABAE;
+            --secondary-color: #31363F;
+            --text-color: #EEEEEE;
+            --background-color: #222831;
+            --border-color: #4E5D6C;
+        }
+        
+        body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+        
+        .navbar {
+            background-color: var(--secondary-color);
+            padding: 0.5rem 1rem;
+        }
+        
+        .navbar-brand {
+            font-weight: 600;
+        }
+        
+        .nav-link {
+            color: var(--primary-color) !important;
+        }
+        
+        .nav-link:hover {
+            color: var(--text-color) !important;
+        }
+        
+        .form-container {
+            background-color: var(--secondary-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        input[type="text"],
+        textarea,
+        select,
+        input[type="datetime-local"],
+        input[type="file"] {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+        
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        
+        .cancel-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .submit-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .error {
+            color: #dc3545;
+            margin-bottom: 1rem;
+        }
+        
+        footer {
+            background-color: var(--secondary-color);
+            padding: 1rem;
+            margin-top: 2rem;
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
-    <header>
-        <h1><?php echo htmlspecialchars($foundAssignment['assignment_title']); ?></h1>
-    </header>
-    <main>
-        <!-- Assignment Details / Content -->
-        <section id="assignment-details">
-            <h2>Assignment Details</h2>
-            <p><?php echo nl2br(htmlspecialchars($foundAssignment['assignment_description'])); ?></p>
-            <?php if (!empty($foundAssignment['instructions'])): ?>
-                <p><strong>Instructions:</strong> <?php echo nl2br(htmlspecialchars($foundAssignment['instructions'])); ?></p>
-            <?php endif; ?>
-            <?php if (!empty($foundAssignment['deadline'])): ?>
-                <p><strong>Deadline:</strong> <?php echo date("F j, Y, g:i a", strtotime($foundAssignment['deadline'])); ?></p>
-            <?php endif; ?>
-        </section>
-        
-        <!-- Submission Form -->
-        <section id="submission-form">
-            <h2>Submit Your Assignment</h2>
-            <?php if (!empty($errors)): ?>
-                <div class="error-messages">
-                    <?php foreach ($errors as $error): ?>
-                        <p style="color:red;"><?php echo htmlspecialchars($error); ?></p>
-                    <?php endforeach; ?>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fa-solid fa-book me-2"></i>
+                Assignment Submission
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="class.php?class_id=<?php echo urlencode($foundAssignment['class_id']); ?>">
+                            <i class="fa-solid fa-arrow-left me-1"></i> Back to Class
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container my-4">
+        <div class="form-container">
+            <h1><?php echo htmlspecialchars($foundAssignment['assignment_title']); ?></h1>
+            
+            <!-- Assignment Details -->
+            <section id="assignment-details" class="mb-4">
+                <h2 class="fw-bold mb-3">Assignment Details</h2>
+                <div class="mb-3">
+                    <label class="form-label">Description:</label>
+                    <p class="form-control-plaintext"><?php echo nl2br(htmlspecialchars($foundAssignment['assignment_description'])); ?></p>
                 </div>
-            <?php endif; ?>
-            <form action="assignment.php?assignment_id=<?php echo urlencode($assignment_id); ?>" method="POST" enctype="multipart/form-data">
-                <div>
-                    <label for="text_response">Your Response:</label><br>
-                    <textarea name="text_response" id="text_response" rows="8" cols="50" placeholder="Type your response here..."></textarea>
-                </div>
-                <div>
-                    <label for="file_response">Upload File (max 25MB):</label><br>
-                    <input type="hidden" name="MAX_FILE_SIZE" value="<?php echo $maxFileSize; ?>">
-                    <input type="file" name="file_response" id="file_response" accept="*/*">
-                </div>
-                <div class="form-buttons">
-                    <button type="button" onclick="window.location.href='class.php?class_id=<?php echo urlencode($foundAssignment['class_id']); ?>';">Cancel</button>
-                    <button type="submit">Submit</button>
-                </div>
-            </form>
-        </section>
+                <?php if (!empty($foundAssignment['instructions'])): ?>
+                    <div class="mb-3">
+                        <label class="form-label">Instructions:</label>
+                        <p class="form-control-plaintext"><?php echo nl2br(htmlspecialchars($foundAssignment['instructions'])); ?></p>
+                    </div>
+                <?php endif; ?>
+                <?php if (!empty($foundAssignment['deadline'])): ?>
+                    <div class="mb-3">
+                        <label class="form-label">Deadline:</label>
+                        <p class="form-control-plaintext"><?php echo date("F j, Y, g:i a", strtotime($foundAssignment['deadline'])); ?></p>
+                    </div>
+                <?php endif; ?>
+            </section>
+            
+            <!-- Submission Form -->
+            <section id="submission-form">
+                <h2 class="fw-bold mb-4">Submit Your Assignment</h2>
+                
+                <?php if (!empty($errors)): ?>
+                    <div class="alert alert-danger error" role="alert">
+                        <?php foreach ($errors as $error): ?>
+                            <p class="mb-1"><?php echo htmlspecialchars($error); ?></p>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+                
+                <form action="assignment.php?assignment_id=<?php echo urlencode($assignment_id); ?>" method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="text_response" class="form-label">Your Response:</label>
+                        <textarea class="form-control" id="text_response" name="text_response" rows="8" placeholder="Type your response here..."></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="file_response" class="form-label">Upload File (max 25MB):</label>
+                        <input class="form-control" type="file" name="file_response" id="file_response" accept="*/*">
+                    </div>
+                    
+                    <div class="actions">
+                        <button type="button" class="cancel-btn" onclick="window.location.href='class.php?class_id=<?php echo urlencode($foundAssignment['class_id']); ?>'">Cancel</button>
+                        <button type="submit" class="submit-btn">Submit</button>
+                    </div>
+                </form>
+            </section>
+        </div>
     </main>
-    <footer>
-        <p>&copy; <?php echo date("Y"); ?> Writepathic. All rights reserved.</p>
+
+    <footer class="py-3 my-4">
+        <div class="container text-center">
+            <p class="mb-0">&copy; <?php echo date("Y"); ?> Writepathic. All rights reserved.</p>
+        </div>
     </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
