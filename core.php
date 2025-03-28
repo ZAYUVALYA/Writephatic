@@ -313,7 +313,6 @@ switch ($action) {
         $assignmentDescriptions = $_POST['content_assignment_description'] ?? [];
         $contentDeadlines = $_POST['content_deadline'] ?? [];
         
-        
         // Process each content element.
         for ($i = 0; $i < count($contentTypes); $i++) {
             $type = trim($contentTypes[$i]);

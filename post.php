@@ -1,11 +1,30 @@
 <?php
 session_start();
 
-// Ensure only instructors can access this page.
+// Handle logout request
+if (isset($_POST['logout'])) {
+    // Clear all session variables
+    $_SESSION = [];
+    
+    // Destroy the session
+    session_destroy();
+    
+    // Redirect to login page
+    header('Location: login.php');
+    exit;
+}
+
+// Ensure only authenticated users can access this page
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'instructor') {
     header('Location: login.php');
     exit;
 }
+
+// Add headers to prevent caching
+header('Cache-Control: no-cache, no-store, must-revalidate');
+header('Pragma: no-cache');
+header('Expires: 0');
+
 
 // Verify required GET parameters: class_id is always needed.
 if (!isset($_GET['class_id'])) {

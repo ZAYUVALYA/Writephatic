@@ -1,11 +1,31 @@
 <?php
 session_start();
 
-// Ensure only instructors can access this page
+// Handle logout request
+if (isset($_POST['logout'])) {
+    // Clear all session variables
+    $_SESSION = [];
+    
+    // Destroy the session
+    session_destroy();
+    
+    // Redirect to login page
+    header('Location: login.php');
+    exit;
+}
+
+// Ensure only authenticated users can access this page
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'instructor') {
     header('Location: login.php');
     exit;
 }
+
+// Add headers to prevent caching
+header('Cache-Control: no-cache, no-store, must-revalidate');
+header('Pragma: no-cache');
+header('Expires: 0');
+
+// Rest of the existing code...
 
 // Define paths to JSON files
 $dataDir = __DIR__ . '/data/';
@@ -90,465 +110,434 @@ $instructorClasses = array_filter($classes, function($class) {
     return $class['instructor_id'] === $_SESSION['user_id'];
 });
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Instructor Dashboard - Writepathic</title>
-    <link rel="stylesheet" href="style.css">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://unpkg.com/scrollreveal"></script>
+    
     <style>
-        /* dashboard.css - Modern Responsive Styling */
-
-/* Base Styles & Variables */
-:root {
-    --primary-color: #4A90E2;
-    --secondary-color: #6C5CE7;
-    --success-color: #00B894;
-    --danger-color: #D63031;
-    --text-dark: #2D3436;
-    --text-light: #F8F9FA;
-    --transition-speed: 0.3s;
-    --border-radius: 12px;
-    --box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-}
-
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: 'Segoe UI', system-ui, sans-serif;
-}
-
-body {
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    color: var(--text-dark);
-    line-height: 1.6;
-}
-
-/* Dashboard Layout */
-.dashboard-container {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 2rem;
-    display: grid;
-    grid-gap: 2rem;
-    min-height: 100vh;
-}
-
-header {
-    padding: 2rem 0;
-    animation: fadeInDown 0.8s;
-    display: flex;
-}
-
-header h1 {
-    font-size: 2.5rem;
-    color: var(--primary-color);
-    margin-bottom: 0.5rem;
-    letter-spacing: -0.5px;
-}
-
-/* Class Cards Grid */
-.class-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1.5rem;
-    margin: 2rem 0;
-}
-
-.class-card {
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: var(--border-radius);
-    padding: 1.5rem;
-    cursor: pointer;
-    transition: all var(--transition-speed) ease;
-    transform-style: preserve-3d;
-    border: 1px solid rgba(255,255,255,0.2);
-    backdrop-filter: blur(10px);
-}
-
-.class-card:hover {
-    transform: translateY(-5px) scale(1.02);
-    box-shadow: var(--box-shadow);
-}
-
-.class-card h3 {
-    color: var(--secondary-color);
-    margin-bottom: 0.5rem;
-}
-
-/* Class Dashboard Sections */
-.class-dashboard {
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: var(--border-radius);
-    padding: 2rem;
-    margin: 2rem 0;
-    box-shadow: var(--box-shadow);
-    backdrop-filter: blur(10px);
-    animation: slideUp 0.6s ease;
-}
-
-/* Posts Grid */
-.post-card {
-    background: white;
-    border-radius: var(--border-radius);
-    padding: 1.5rem;
-    margin: 1rem 0;
-    transition: transform var(--transition-speed);
-    position: relative;
-    overflow: hidden;
-}
-
-.post-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 4px;
-    height: 100%;
-    background: var(--primary-color);
-}
-
-.post-card:hover {
-    transform: translateX(10px);
-}
-
-/* Student List & Search */
-.student-list {
-    background: rgba(255,255,255,0.9);
-    border-radius: var(--border-radius);
-    max-height: 400px;
-    padding: 1rem;
-}
-
-.search-box {
-    width: 100%;
-    padding: 0.8rem;
-    border: 2px solid var(--primary-color);
-    border-radius: var(--border-radius);
-    margin-bottom: 1rem;
-    transition: all var(--transition-speed);
-}
-
-.search-box:focus {
-    border-color: var(--secondary-color);
-    box-shadow: 0 0 8px rgba(108,92,231,0.2);
-}
-
-/* Action Buttons */
-.action-buttons {
-    display: flex;
-    gap: 1rem;
-    margin-top: 1.5rem;
-}
-
-.button {
-    padding: 0.8rem 1.5rem;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all var(--transition-speed);
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.button i {
-    font-size: 1.1em;
-}
-
-.edit-btn {
-    background: var(--primary-color);
-    color: white;
-}
-
-.delete-btn {
-    background: var(--danger-color);
-    color: white;
-}
-
-.assignment-btn {
-    background: var(--success-color);
-    color: white;
-}
-
-/* Modal Styles */
-#submissionModal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.5);
-    display: none;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-}
-
-.modal-content {
-    background: white;
-    padding: 2rem;
-    border-radius: var(--border-radius);
-    max-width: 90%;
-    max-height: 90vh;
-    overflow: auto;
-    position: relative;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .dashboard-container {
-        padding: 1rem;
-        grid-gap: 1rem;
-    }
-
-    .class-list {
-        grid-template-columns: 1fr;
-    }
-
-    .class-dashboard {
-        padding: 1rem;
-    }
-
-    .post-card {
-        padding: 1rem;
-    }
-
-    .action-buttons {
-        flex-direction: column;
-    }
-
-    .button {
-        width: 100%;
-        justify-content: center;
-    }
-}
-
-@media (max-width: 480px) {
-    header h1 {
-        font-size: 2rem;
-    }
-
-    .search-box {
-        padding: 0.6rem;
-    }
-}
-
-/* Animations */
-@keyframes fadeInDown {
-    from {
-        opacity: 0;
-        transform: translateY(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* ScrollReveal Adjustments */
-[data-sr] {
-    visibility: hidden;
-}
-
-/* Utility Classes */
-.flex-center {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.shadow-lg {
-    box-shadow: var(--box-shadow);
-}
-
-.mb-2 {
-    margin-bottom: 2rem;
-}
+        :root {
+            --primary-color: #76ABAE;
+            --secondary-color: #31363F;
+            --text-color: #EEEEEE;
+            --background-color: #222831;
+            --border-color: #4E5D6C;
+        }
+        
+        body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+        
+        .navbar {
+            background-color: var(--secondary-color);
+            padding: 0.5rem 1rem;
+        }
+        
+        .navbar-brand {
+            font-weight: 600;
+        }
+        
+        .nav-link {
+            color: var(--primary-color) !important;
+        }
+        
+        .nav-link:hover {
+            color: var(--text-color) !important;
+        }
+        
+        .form-container {
+            background-color: var(--secondary-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .class-card {
+            background-color: var(--secondary-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .class-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .class-name {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .enrollment-code {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .class-dashboard {
+            background-color: var(--secondary-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .post-card {
+            background-color: rgba(49, 54, 63, 0.8);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .post-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 0.5rem;
+        }
+        
+        .post-title {
+            font-size: 1.25rem;
+        }
+        
+        .post-date {
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+        
+        .post-content {
+            line-height: 1.6;
+        }
+        
+        .text-content {
+            margin-bottom: 1rem;
+        }
+        
+        .file-link {
+            display: inline-block;
+            margin: 0.5rem 0;
+            padding: 0.3rem 0.5rem;
+            background-color: rgba(118, 171, 174, 0.1);
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        
+        .media-content {
+            max-width: 100%;
+            border-radius: 4px;
+            margin: 0.5rem 0;
+        }
+        
+        .video-content {
+            width: 100%;
+            height: auto;
+        }
+        
+        .action-btn {
+            padding: 0.3rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            margin-right: 0.5rem;
+        }
+        
+        .edit-btn {
+            background-color: var(--primary-color);
+            color: var(--text-color);
+            border: none;
+        }
+        
+        .delete-btn {
+            background-color: #D63031;
+            color: var(--text-color);
+            border: none;
+        }
+        
+        .assignment-btn {
+            background-color: #00B894;
+            color: var(--text-color);
+            border: none;
+        }
+        
+        .student-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .student-item {
+            padding: 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .student-item:last-child {
+            border-bottom: none;
+        }
+        
+        .search-box {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+        }
+        
+        .button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .primary-btn {
+            background-color: var(--primary-color);
+            color: var(--text-color);
+        }
+        
+        .primary-btn:hover {
+            background-color: #63999C;
+        }
+        
+        footer {
+            background-color: var(--secondary-color);
+            padding: 1rem;
+            margin-top: 2rem;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
-    <div class="dashboard-container">
-        <header>
-            <h1>Instructor Dashboard</h1>
-            <p>Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?></p>
-            <nav>
-                <a href="logout.php">Logout</a>
-            </nav>
-        </header>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fa-solid fa-chalkboard-user me-2"></i>
+                Instructor Dashboard
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <form action="logout.php" method="POST" class="d-inline">
+                            <button type="submit" name="logout" class="nav-link btn" style="background: none; border: none; cursor: pointer;">
+                                <i class="fa-solid fa-right-from-bracket me-1"></i> Logout
+                            </button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
 
-        <main>
-            <section id="dashboard-info">
-                <h2>Your Classes</h2>
-                <form action="dashboard.php" method="POST" style="margin-bottom: 20px;">
-                    <label for="new_class_name">Add New Class:</label>
-                    <input type="text" name="new_class_name" id="new_class_name" required placeholder="Enter class name">
-                    <button type="submit">Add Class</button>
-                </form>
+    <main class="container my-4">
+        <div class="row mb-4">
+            <div class="col">
+                <h1 class="display-6 fw-bold">Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?></h1>
+            </div>
+        </div>
 
-                <div id="class-list" class="class-list">
-                    <?php if (!empty($instructorClasses)): ?>
-                        <?php foreach ($instructorClasses as $class): ?>
-                            <div class="class-card" onclick="toggleClassDashboard('<?php echo $class['class_id']; ?>')">
-                                <h3><?php echo htmlspecialchars($class['class_name']); ?></h3>
-                                <p>Enrollment Code: <strong><?php echo htmlspecialchars($class['enrollment_code']); ?></strong></p>
-                            </div>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <p>You haven't created any classes yet.</p>
-                    <?php endif; ?>
-                </div>
-            </section>
-
-            <?php foreach ($instructorClasses as $class): 
-                $classPosts = array_filter($posts, function($post) use ($class) {
-                    return $post['class_id'] === $class['class_id'];
-                });
-                $classEnrollments = array_filter($enrollments, function($enrollment) use ($class) {
-                    return $enrollment['class_id'] === $class['class_id'] && $enrollment['status'] === 'active';
-                });
-            ?>
-            <div id="dashboard-<?php echo $class['class_id']; ?>" class="class-dashboard" style="display: none;">
-                <div class="class-header">
-                    <h2><?php echo htmlspecialchars($class['class_name']); ?> Dashboard</h2>
-                    <p>Enrollment Code: <strong><?php echo htmlspecialchars($class['enrollment_code']); ?></strong></p>
-                    <div class="action-buttons">
-                        <button onclick="window.location.href='post.php?class_id=<?php echo urlencode($class['class_id']); ?>'">Add Post</button>
+        <!-- Your Classes Section -->
+        <section id="your-classes" class="mb-5">
+            <h2 class="fw-bold mb-4">Your Classes</h2>
+            
+            <!-- Add New Class Form -->
+            <div class="form-container mb-4">
+                <form action="dashboard.php" method="POST">
+                    <div class="mb-3">
+                        <label for="new_class_name" class="form-label">Add New Class:</label>
+                        <input type="text" name="new_class_name" id="new_class_name" class="form-control" placeholder="Enter class name" required>
                     </div>
+                    <button type="submit" class="btn btn-primary">Add Class</button>
+                </form>
+            </div>
+
+            <?php if (!empty($instructorClasses)): ?>
+                <div class="row">
+                    <?php foreach ($instructorClasses as $class): ?>
+                        <div class="col-md-4">
+                            <div class="class-card" onclick="showClassDashboard('<?php echo $class['class_id']; ?>')">
+                                <h3 class="class-name"><?php echo htmlspecialchars($class['class_name']); ?></h3>
+                                <p class="enrollment-code">Enrollment Code: <strong><?php echo htmlspecialchars($class['enrollment_code']); ?></strong></p>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php else: ?>
+                <div class="alert alert-light" role="alert">
+                    You haven't created any classes yet.
+                </div>
+            <?php endif; ?>
+        </section>
+
+        <!-- Class Dashboards -->
+        <?php foreach ($instructorClasses as $class): 
+            $classPosts = array_filter($posts, function($post) use ($class) {
+                return $post['class_id'] === $class['class_id'];
+            });
+            $classEnrollments = array_filter($enrollments, function($enrollment) use ($class) {
+                return $enrollment['class_id'] === $class['class_id'] && $enrollment['status'] === 'active';
+            });
+        ?>
+            <div id="class-dashboard-<?php echo $class['class_id']; ?>" class="class-dashboard" style="display: none;">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="fw-bold"><?php echo htmlspecialchars($class['class_name']); ?> Dashboard</h2>
+                    <button class="btn btn-primary" onclick="window.location.href='post.php?class_id=<?php echo urlencode($class['class_id']); ?>'">
+                        <i class="fa-solid fa-plus me-1"></i> Add Post
+                    </button>
                 </div>
 
-                <div class="class-content">
-                    <h3>Class Posts</h3>
+                <!-- Class Posts -->
+                <section class="mb-5">
+                    <h3 class="fw-bold mb-4">Class Posts</h3>
                     <?php if (!empty($classPosts)): ?>
                         <?php foreach ($classPosts as $post): ?>
-                            <div class="post-card" data-post-id="<?php echo $post['post_id']; ?>">
+                            <div class="post-card">
                                 <div class="post-header">
-                                    <h4><?php echo htmlspecialchars($post['title']); ?></h4>
-                                    <small>Posted on <?php echo date("F j, Y, g:i a", strtotime($post['created_at'])); ?></small>
+                                    <div>
+                                        <h4 class="post-title"><?php echo htmlspecialchars($post['title']); ?></h4>
+                                        <small class="post-date"><?php echo date("F j, Y, g:i a", strtotime($post['created_at'])); ?></small>
+                                    </div>
                                     <div class="post-actions">
-                                        <button class="edit-btn" onclick="editPost('<?php echo $post['post_id']; ?>', '<?php echo $class['class_id']; ?>')">Edit</button>
-                                        <button class="delete-btn" onclick="deletePost('<?php echo $post['post_id']; ?>')">Delete</button>
+                                        <button class="action-btn edit-btn" onclick="editPost('<?php echo $post['post_id']; ?>', '<?php echo $class['class_id']; ?>')">
+                                            <i class="fa-solid fa-pen-to-square me-1"></i> Edit
+                                        </button>
+                                        <button class="action-btn delete-btn" onclick="deletePost('<?php echo $post['post_id']; ?>')">
+                                            <i class="fa-solid fa-trash me-1"></i> Delete
+                                        </button>
                                     </div>
                                 </div>
                                 <div class="post-content">
                                     <?php
                                     if (isset($post['content']) && is_array($post['content'])) {
                                         foreach ($post['content'] as $element) {
+                                            $elementHtml = '';
+                                            
                                             switch ($element['type']) {
                                                 case 'text':
                                                     if (!empty($element['text'])) {
-                                                        echo "<p>" . nl2br(htmlspecialchars($element['text'])) . "</p>";
+                                                        $elementHtml = "<p class='text-content'>" . nl2br(htmlspecialchars($element['text'])) . "</p>";
                                                     }
                                                     break;
                                                 case 'link':
                                                     if (!empty($element['link'])) {
-                                                        echo "<p><a href='" . htmlspecialchars($element['link']) . "' target='_blank'><i class='fa-solid fa-link'></i> " . htmlspecialchars($element['link']) . "</a></p>";
+                                                        $elementHtml = "<a href='" . htmlspecialchars($element['link']) . "' target='_blank' class='file-link'><i class='fa-solid fa-link me-1'></i> " . htmlspecialchars($element['link']) . "</a>";
                                                     }
                                                     break;
                                                 case 'image':
                                                     if (isset($element['file']) && !empty($element['file']['file_path'])) {
-                                                        echo "<p><i class='fa-solid fa-image'></i> <a class='file-link' href='" . htmlspecialchars($element['file']['file_path']) . "' target='_blank'>" . htmlspecialchars($element['file']['file_name']) . "</a></p>";
-                                                    }
-                                                    break;
-                                                case 'file':
-                                                    if (isset($element['file']) && !empty($element['file']['file_path'])) {
-                                                        echo "<p><i class='fa-solid fa-file'></i> <a class='file-link' href='" . htmlspecialchars($element['file']['file_path']) . "' target='_blank'>" . htmlspecialchars($element['file']['file_name']) . "</a></p>";
+                                                        $elementHtml = "<img src='" . htmlspecialchars($element['file']['file_path']) . "' alt='" . htmlspecialchars($element['file']['file_name']) . "' class='img-fluid media-content'>";
                                                     }
                                                     break;
                                                 case 'video':
                                                     if (isset($element['file']) && !empty($element['file']['file_path'])) {
-                                                        echo "<p><i class='fa-solid fa-video'></i> <a class='file-link' href='" . htmlspecialchars($element['file']['file_path']) . "' target='_blank'>" . htmlspecialchars($element['file']['file_name']) . "</a></p>";
+                                                        $elementHtml = "<video class='video-content' controls>
+                                                                            <source src='" . htmlspecialchars($element['file']['file_path']) . "' type='video/mp4'>
+                                                                            Your browser does not support the video tag.
+                                                                        </video>";
                                                     } else {
-                                                        echo "<p><i class='fa-solid fa-video'></i> Video element (no file attached)</p>";
+                                                        $elementHtml = "<p><i class='fa-solid fa-video'></i> Video element (no file attached)</p>";
+                                                    }
+                                                    break;
+                                                case 'file':
+                                                    if (isset($element['file']) && !empty($element['file']['file_path'])) {
+                                                        $elementHtml = "<a href='" . htmlspecialchars($element['file']['file_path']) . "' target='_blank' class='file-link'><i class='fa-solid fa-file me-1'></i> " . htmlspecialchars($element['file']['file_name']) . "</a>";
                                                     }
                                                     break;
                                                 case 'assignment':
                                                     // Check if the assignment element contains any non-empty info.
                                                     $hasAssignmentData = (!empty($element['assignment_title']) || !empty($element['assignment_description']) || !empty($element['deadline']));
                                                     if ($hasAssignmentData) {
-                                                        echo "<p><i class='fa-solid fa-book'></i> Assignment: " . htmlspecialchars($element['assignment_title']) . "</p>";
-                                                        echo "<p><strong>Deadline:</strong> " . date("F j, Y, g:i a", strtotime($element['deadline'])) . "</p>";
-                                                        echo "<p>" . nl2br(htmlspecialchars($element['text'])) . "</p>";
+                                                        // Use the assignment_id if available; otherwise, fall back to the post id.
+                                                        $assignmentId = isset($element['assignment_id']) && !empty($element['assignment_id']) 
+                                                            ? $element['assignment_id'] 
+                                                            : $post['post_id'];
+                                                        $elementHtml = "<p><i class='fa-solid fa-book me-1'></i> Assignment: " . htmlspecialchars($element['assignment_title']) . "</p>";
+                                                        $elementHtml .= "<p><strong>Deadline:</strong> " . date("F j, Y, g:i a", strtotime($element['deadline'])) . "</p>";
+                                                        $elementHtml .= "<p>" . nl2br(htmlspecialchars($element['text'])) . "</p>";
                                                         
                                                         // Display submission status
-                                                        $assignmentId = $element['assignment_id'] ?? '';
-                                                        if (!empty($assignmentId)) {
-                                                            $submissionCount = 0;
-                                                            foreach ($submissions as $submission) {
-                                                                if ($submission['assignment_id'] === $assignmentId) {
-                                                                    $submissionCount++;
-                                                                }
+                                                        $submissionCount = 0;
+                                                        foreach ($submissions as $submission) {
+                                                            if ($submission['assignment_id'] === $assignmentId) {
+                                                                $submissionCount++;
                                                             }
-                                                            echo "<p><strong>Submissions:</strong> " . $submissionCount . "</p>";
-                                                            echo "<button class='assignment-btn' onclick='viewSubmissions(\"" . $assignmentId . "\")'>View Submissions</button>";
                                                         }
+                                                        $elementHtml .= "<p><strong>Submissions:</strong> " . $submissionCount . "</p>";
+                                                        $elementHtml .= "<button class='action-btn assignment-btn' onclick='viewSubmissions(\"" . $assignmentId . "\")'><i class='fa-solid fa-eye me-1'></i> View Submissions</button>";
                                                     }
                                                     break;
                                                 default:
                                                     // For unknown types, do nothing.
                                                     break;
                                             }
+                                            
+                                            if (!empty($elementHtml)) {
+                                                echo "<div class='post-element'>" . $elementHtml . "</div>";
+                                            }
                                         }
                                     } else {
-                                        echo "<p>No content available.</p>";
+                                        echo "<p class='text-content'>No content available.</p>";
                                     }
                                     ?>
                                 </div>
                             </div>
                         <?php endforeach; ?>
                     <?php else: ?>
-                        <p>No posts in this class.</p>
+                        <p class="text-content">No posts in this class.</p>
                     <?php endif; ?>
-                </div>
+                </section>
 
-                <aside class="sidebar">
-                    <h3>Enrolled Students (<?php echo count($classEnrollments); ?>)</h3>
-                    <input type="text" class="search-box" placeholder="Search student" onkeyup="searchStudents(this, '<?php echo $class['class_id']; ?>')">
-                    <ul class="student-list" id="student-list-<?php echo $class['class_id']; ?>">
+                <!-- Enrolled Students -->
+                <section>
+                    <h3 class="fw-bold mb-4">Enrolled Students (<?php echo count($classEnrollments); ?>)</h3>
+                    <div class="mb-3">
+                        <input type="text" class="search-box" placeholder="Search students" onkeyup="searchStudents(this, '<?php echo $class['class_id']; ?>')">
+                    </div>
+                    <div class="student-list" id="student-list-<?php echo $class['class_id']; ?>">
                         <?php
                         foreach ($classEnrollments as $enrollment) {
                             foreach ($users as $user) {
                                 if ($user['user_id'] === $enrollment['user_id']) {
-                                    echo "<li>" . htmlspecialchars($user['username']) . "</li>";
+                                    echo "<div class='student-item'>" . htmlspecialchars($user['username']) . "</div>";
                                     break;
                                 }
                             }
                         }
                         ?>
-                    </ul>
-                </aside>
+                    </div>
+                </section>
             </div>
-            <?php endforeach; ?>
-        </main>
+        <?php endforeach; ?>
+    </main>
 
-        <footer>
-            <p>&copy; <?php echo date("Y"); ?> Writepathic. All rights reserved.</p>
-        </footer>
-    </div>
+    <footer class="py-3 my-4">
+        <div class="container text-center">
+            <p class="mb-0">&copy; <?php echo date("Y"); ?> Writepathic. All rights reserved.</p>
+        </div>
+    </footer>
 
     <!-- Modal for viewing submissions -->
     <div id="submissionModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeSubmissionModal()">&times;</span>
             <h3>Assignment Submissions</h3>
-            <table class="submission-table" border="1" width="100%">
+            <table class="table">
                 <thead>
                     <tr>
                         <th>Student Name</th>
@@ -571,21 +560,37 @@ header h1 {
         <input type="hidden" name="delete_post_id" id="delete_post_id">
     </form>
 
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Font Awesome -->
+    <script src="https://kit.fontawesome.com/a076d05399.js"></script>
+    
     <script>
-        function toggleClassDashboard(classId) {
-            const dashboard = document.getElementById('dashboard-' + classId);
-            const displayStyle = dashboard.style.display;
-            dashboard.style.display = displayStyle === 'none' || displayStyle === '' ? 'block' : 'none';
+        function showClassDashboard(classId) {
+            // Hide all dashboards
+            const allDashboards = document.querySelectorAll('.class-dashboard');
+            allDashboards.forEach(dashboard => {
+                dashboard.style.display = 'none';
+            });
+            
+            // Show the selected dashboard
+            const dashboard = document.getElementById('class-dashboard-' + classId);
+            dashboard.style.display = 'block';
+            
+            // Scroll to the dashboard
+            dashboard.scrollIntoView({ behavior: 'smooth' });
         }
 
         function searchStudents(input, classId) {
             const filter = input.value.toLowerCase();
-            const ul = document.getElementById('student-list-' + classId);
-            const li = ul.getElementsByTagName('li');
-            for (let i = 0; i < li.length; i++) {
-                const txtValue = li[i].textContent || li[i].innerText;
-                li[i].style.display = txtValue.toLowerCase().indexOf(filter) > -1 ? '' : 'none';
-            }
+            const studentList = document.getElementById('student-list-' + classId);
+            const students = studentList.querySelectorAll('.student-item');
+            
+            students.forEach(student => {
+                const txtValue = student.textContent || student.innerText;
+                student.style.display = txtValue.toLowerCase().indexOf(filter) > -1 ? 'block' : 'none';
+            });
         }
 
         function editPost(postId, classId) {
@@ -619,7 +624,7 @@ header h1 {
                                 <td>${submission.grade !== null ? submission.grade : '-'}</td>
                                 <td>${submission.feedback !== null ? submission.feedback : '-'}</td>
                                 <td>
-                                    <button onclick="gradeSubmission('${submission.submission_id}', ${submission.grade !== null ? submission.grade : ''})">Grade</button>
+                                    <button class="btn btn-sm btn-primary" onclick="gradeSubmission('${submission.submission_id}', ${submission.grade !== null ? submission.grade : ''})">Grade</button>
                                 </td>
                             `;
                             tbody.appendChild(row);

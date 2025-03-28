@@ -1,11 +1,31 @@
 <?php
 session_start();
 
-// Redirect to login if user is not authenticated
-if (!isset($_SESSION['user_id'])) {
+// Handle logout request
+if (isset($_POST['logout'])) {
+    // Clear all session variables
+    $_SESSION = [];
+    
+    // Destroy the session
+    session_destroy();
+    
+    // Redirect to login page
     header('Location: login.php');
     exit;
 }
+
+// Ensure only authenticated users can access this page
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
+    header('Location: login.php');
+    exit;
+}
+
+// Add headers to prevent caching
+header('Cache-Control: no-cache, no-store, must-revalidate');
+header('Pragma: no-cache');
+header('Expires: 0');
+
+// Rest of the existing code...
 
 // Validate that assignment_id is provided
 if (!isset($_GET['assignment_id'])) {

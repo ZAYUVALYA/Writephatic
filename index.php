@@ -1,11 +1,31 @@
 <?php
 session_start();
 
-// Redirect to login if user is not authenticated
-if (!isset($_SESSION['user_id'])) {
+// Handle logout request
+if (isset($_POST['logout'])) {
+    // Clear all session variables
+    $_SESSION = [];
+    
+    // Destroy the session
+    session_destroy();
+    
+    // Redirect to login page
     header('Location: login.php');
     exit;
 }
+
+// Ensure only authenticated users can access this page
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
+    header('Location: login.php');
+    exit;
+}
+
+// Add headers to prevent caching
+header('Cache-Control: no-cache, no-store, must-revalidate');
+header('Pragma: no-cache');
+header('Expires: 0');
+
+// Rest of the existing code...
 
 // Define paths to JSON files
 $classesFile     = __DIR__ . '/data/classes.json';
@@ -200,9 +220,11 @@ foreach ($enrollments as $enrollment) {
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="logout.php">
-                            <i class="fa-solid fa-right-from-bracket me-1"></i> Logout
-                        </a>
+                        <form action="logout.php" method="POST" class="d-inline">
+                            <button type="submit" name="logout" class="nav-link btn" style="background: none; border: none; cursor: pointer;">
+                                <i class="fa-solid fa-right-from-bracket me-1"></i> Logout
+                            </button>
+                        </form>
                     </li>
                 </ul>
             </div>
