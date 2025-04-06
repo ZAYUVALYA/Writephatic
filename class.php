@@ -1,31 +1,11 @@
 <?php
 session_start();
 
-// Handle logout request
-if (isset($_POST['logout'])) {
-    // Clear all session variables
-    $_SESSION = [];
-    
-    // Destroy the session
-    session_destroy();
-    
-    // Redirect to login page
-    header('Location: login.php');
-    exit;
-}
-
 // Ensure only authenticated users can access this page
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
+if (!isset($_SESSION['user_id'])) {
     header('Location: login.php');
     exit;
 }
-
-// Add headers to prevent caching
-header('Cache-Control: no-cache, no-store, must-revalidate');
-header('Pragma: no-cache');
-header('Expires: 0');
-
-// Rest of the existing code...
 
 // Validate that class_id is provided
 if (!isset($_GET['class_id'])) {
@@ -47,6 +27,11 @@ function loadJson($file) {
     }
     $json = file_get_contents($file);
     return json_decode($json, true) ?: [];
+}
+
+// Helper function: save JSON data to file
+function saveJson($file, $data) {
+    file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT));
 }
 
 // Load class details
@@ -77,6 +62,16 @@ foreach ($enrollments as $enrollment) {
 
 if (!$enrolled) {
     die("You are not enrolled in this class.");
+}
+
+// Process leaving the class
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['leave_class'])) {
+    $updatedEnrollments = array_filter($enrollments, function($enrollment) use ($class_id) {
+        return $enrollment['class_id'] !== $class_id || $enrollment['user_id'] !== $_SESSION['user_id'];
+    });
+    saveJson($enrollmentsFile, $updatedEnrollments);
+    header('Location: index.php');
+    exit;
 }
 
 // Load posts for this class
@@ -227,9 +222,11 @@ $classPosts = array_values(array_filter($posts, function($post) use ($class_id) 
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="leave_class.php?class_id=<?php echo urlencode($currentClass['class_id']); ?>" onclick="return confirm('Are you sure you want to leave this class?');">
-                            <i class="fa-solid fa-right-from-bracket me-1"></i> Leave Class
-                        </a>
+                        <form action="" method="POST" style="display: inline;">
+                            <button type="submit" name="leave_class" class="nav-link btn" style="background: none; border: none; cursor: pointer;" onclick="return confirm('Are you sure you want to leave this class?');">
+                                <i class="fa-solid fa-right-from-bracket me-1"></i> Leave Class
+                            </button>
+                        </form>
                     </li>
                 </ul>
             </div>
