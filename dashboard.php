@@ -3,13 +3,7 @@ session_start();
 
 // Handle logout request
 if (isset($_POST['logout'])) {
-    // Clear all session variables
-    $_SESSION = [];
-    
-    // Destroy the session
     session_destroy();
-    
-    // Redirect to login page
     header('Location: login.php');
     exit;
 }
@@ -24,8 +18,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'instructor') {
 header('Cache-Control: no-cache, no-store, must-revalidate');
 header('Pragma: no-cache');
 header('Expires: 0');
-
-// Rest of the existing code...
 
 // Define paths to JSON files
 $dataDir = __DIR__ . '/data/';
@@ -604,38 +596,42 @@ $instructorClasses = array_filter($classes, function($class) {
             }
         }
 
-        function viewSubmissions(assignmentId) {
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', 'core.php?action=fetchSubmissions', true);
-            xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-            xhr.onreadystatechange = function () {
-                if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
-                    const response = JSON.parse(xhr.responseText);
-                    if (response.success) {
-                        const tbody = document.getElementById('submissionTableBody');
-                        tbody.innerHTML = '';
-                        
-                        response.submissions.forEach(submission => {
-                            const row = document.createElement('tr');
-                            row.innerHTML = `
-                                <td>${submission.student_name}</td>
-                                <td><a href="${submission.file_url}" target="_blank">${submission.file_name}</a></td>
-                                <td>${new Date(submission.submission_date).toLocaleString()}</td>
-                                <td>${submission.grade !== null ? submission.grade : '-'}</td>
-                                <td>${submission.feedback !== null ? submission.feedback : '-'}</td>
-                                <td>
-                                    <button class="btn btn-sm btn-primary" onclick="gradeSubmission('${submission.submission_id}', ${submission.grade !== null ? submission.grade : ''})">Grade</button>
-                                </td>
-                            `;
-                            tbody.appendChild(row);
-                        });
-                        
-                        document.getElementById('submissionModal').style.display = 'block';
-                    }
-                }
-            };
-            xhr.send(JSON.stringify({ assignment_id: assignmentId }));
+function viewSubmissions(assignmentId) {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', 'core.php?action=fetchSubmissions', true);
+    xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+            const response = JSON.parse(xhr.responseText);
+            if (response.success) {
+                const tbody = document.getElementById('submissionTableBody');
+                tbody.innerHTML = '';
+                
+                response.submissions.forEach(submission => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${submission.student_name}</td>
+                        <td><a href="${submission.file_url}" target="_blank">${submission.file_name}</a></td>
+                        <td>${new Date(submission.submission_date).toLocaleString()}</td>
+                        <td>${submission.grade !== null ? submission.grade : '-'}</td>
+                        <td>${submission.feedback !== null ? submission.feedback : '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="window.location.href='response.php?assignment_id=${assignmentId}&submission_id=${submission.submission_id}'">View</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                
+                document.getElementById('submissionModal').style.display = 'block';
+            } else {
+                displayNotification("Failed to load submissions: " + response.message, "error");
+            }
+        } else {
+            displayNotification("Failed to load submissions: Server error", "error");
         }
+    };
+    xhr.send(JSON.stringify({ assignment_id: assignmentId }));
+}
 
         function closeSubmissionModal() {
             document.getElementById('submissionModal').style.display = 'none';

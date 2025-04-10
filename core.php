@@ -186,7 +186,43 @@ switch ($action) {
             "assignments" => $classAssignments
         ]);
         break;
-    
+
+    // Get assignment details.
+    case "getAssignmentDetails":
+        requireLogin();
+        requireRole("student");
+        $postData = json_decode(file_get_contents("php://input"), true);
+        $assignment_id = trim($postData['assignment_id'] ?? '');
+        if (empty($assignment_id)) {
+            sendResponse(["success" => false, "message" => "Assignment ID is required."]);
+        }
+        $posts = loadJson($postsFile);
+        $foundAssignment = null;
+        foreach ($posts as $post) {
+            if (isset($post['content']) && is_array($post['content'])) {
+                foreach ($post['content'] as $element) {
+                    if ($element['type'] === 'assignment' && isset($element['assignment_id']) && $element['assignment_id'] === $assignment_id) {
+                        $foundAssignment = [
+                            "assignment_id" => $assignment_id,
+                            "assignment_title" => $element['assignment_title'],
+                            "assignment_description" => $element['assignment_description'],
+                            "deadline" => $element['deadline'],
+                            "post_id" => $post['post_id'],
+                            "class_id" => $post['class_id'],
+                            "instructions" => $element['text']
+                        ];
+                        break 2;
+                    }
+                }
+            }
+        }
+        if ($foundAssignment) {
+            sendResponse(["success" => true, "assignment" => $foundAssignment]);
+        } else {
+            sendResponse(["success" => false, "message" => "Assignment not found."]);
+        }
+        break;
+
     // Submit an assignment.
     case "submitAssignment":
         requireLogin();
@@ -237,7 +273,68 @@ switch ($action) {
             sendResponse(["success" => false, "message" => "Failed to save submission."]);
         }
         break;
-        
+
+    // Fetch submissions for a given assignment.
+case "fetchSubmissions":
+    requireLogin();
+    requireRole("instructor");
+    $postData = json_decode(file_get_contents("php://input"), true);
+    $assignment_id = trim($postData['assignment_id'] ?? '');
+    if (empty($assignment_id)) {
+        sendResponse(["success" => false, "message" => "Assignment ID is required."]);
+    }
+    $submissions = loadJson($submissionsFile);
+    $users = loadJson($usersFile);
+    $result = [];
+    foreach ($submissions as $submission) {
+        if ($submission['assignment_id'] === $assignment_id) {
+            // Lookup the student's username.
+            $studentName = "Unknown";
+            foreach ($users as $user) {
+                if ($user['user_id'] === $submission['user_id']) {
+                    $studentName = $user['username'];
+                    break;
+                }
+            }
+            // Assume each submission has one file; adjust as needed.
+            $fileInfo = (isset($submission['uploaded_files'][0])) ? $submission['uploaded_files'][0] : null;
+            $result[] = [
+                "submission_id" => $submission['submission_id'], // Ensure this is included
+                "student_name" => $studentName,
+                "file_name"    => $fileInfo ? $fileInfo['file_name'] : "N/A",
+                "file_url"     => $fileInfo ? $fileInfo['file_path'] : "#",
+                "submission_date" => $submission['submission_date']
+            ];
+        }
+    }
+    sendResponse(["success" => true, "submissions" => $result]);
+    break;
+
+    // Grade a submission.
+    case "gradeSubmission":
+        requireLogin();
+        requireRole("instructor");
+        $submission_id = $_POST['submission_id'] ?? '';
+        $grade = $_POST['grade'] ?? '';
+        $feedback = $_POST['feedback'] ?? '';
+        if (empty($submission_id) || empty($grade)) {
+            sendResponse(["success" => false, "message" => "Submission ID and grade are required."]);
+        }
+        $submissions = loadJson($submissionsFile);
+        foreach ($submissions as &$submission) {
+            if ($submission['submission_id'] === $submission_id) {
+                $submission['grade'] = $grade;
+                $submission['feedback'] = $feedback;
+                break;
+            }
+        }
+        if (saveJson($submissionsFile, $submissions)) {
+            sendResponse(["success" => true, "message" => "Grade saved successfully."]);
+        } else {
+            sendResponse(["success" => false, "message" => "Failed to save grade."]);
+        }
+        break;
+
     // ---------------------------
     // Instructor Actions
     // ---------------------------
@@ -267,7 +364,6 @@ switch ($action) {
         $result = [];
         foreach ($submissions as $submission) {
             if ($submission['assignment_id'] === $assignment_id) {
-                // Lookup the student's username.
                 $studentName = "Unknown";
                 foreach ($users as $user) {
                     if ($user['user_id'] === $submission['user_id']) {
@@ -275,12 +371,14 @@ switch ($action) {
                         break;
                     }
                 }
-                // Assume each submission has one file; adjust as needed.
                 $fileInfo = (isset($submission['uploaded_files'][0])) ? $submission['uploaded_files'][0] : null;
                 $result[] = [
                     "student_name" => $studentName,
                     "file_name"    => $fileInfo ? $fileInfo['file_name'] : "N/A",
-                    "file_url"     => $fileInfo ? $fileInfo['file_path'] : "#"
+                    "file_url"     => $fileInfo ? $fileInfo['file_path'] : "#",
+                    "submission_date" => $submission['submission_date'],
+                    "grade"        => $submission['grade'],
+                    "feedback"     => $submission['feedback']
                 ];
             }
         }
@@ -401,5 +499,3 @@ switch ($action) {
         sendResponse(["success" => false, "message" => "Unknown action."]);
         break;
 }
-
-?>
